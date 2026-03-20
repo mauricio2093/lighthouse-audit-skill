@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lighthouse Auditor"
+  short_description: "Run Lighthouse audits and fix environment issues"
+  default_prompt: "Use $lighthouse-auditor to audit this website with Lighthouse and explain the results."
