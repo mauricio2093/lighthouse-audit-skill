@@ -22,7 +22,7 @@ Codex, Claude Code, Cursor, GitHub Copilot, Gemini CLI, OpenCode, Warp, Kimi Cod
 ## Install
 
 ```bash
-npx skills install github:mauricio2093/lighthouse-audit-skill
+npx skills install mauricio2093/lighthouse-audit-skill
 ```
 
 ## Installation Sources
