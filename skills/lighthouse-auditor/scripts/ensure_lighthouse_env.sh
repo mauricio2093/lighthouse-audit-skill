@@ -27,6 +27,57 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_reserved_windows_profile() {
+  case "$1" in
+    "All Users"|"Default"|"Default User"|"Public"|"TEMP")
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+detect_windows_local_temp() {
+  local local_appdata=""
+  local candidate=""
+  local profile_name=""
+
+  if ! is_wsl; then
+    return 1
+  fi
+
+  if has_cmd cmd.exe; then
+    local_appdata="$(cmd.exe /c "echo %LOCALAPPDATA%" 2>/dev/null | tr -d '\r' | tail -n 1)"
+    if [[ -n "$local_appdata" && "$local_appdata" != "%LOCALAPPDATA%" ]]; then
+      if has_cmd wslpath; then
+        local_appdata="$(wslpath -u "$local_appdata" 2>/dev/null || true)"
+      fi
+      profile_name="$(basename "$(dirname "$(dirname "$(dirname "$local_appdata")")")")"
+      if is_reserved_windows_profile "$profile_name"; then
+        local_appdata=""
+      fi
+      if [[ -n "$local_appdata" && -d "$local_appdata/Temp" ]]; then
+        printf '%s\n' "$local_appdata/Temp"
+        return 0
+      fi
+    fi
+  fi
+
+  for candidate in /mnt/c/Users/*/AppData/Local/Temp; do
+    profile_name="$(basename "$(dirname "$(dirname "$(dirname "$candidate")")")")"
+    if is_reserved_windows_profile "$profile_name"; then
+      continue
+    fi
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 first_existing() {
   local candidate
   for candidate in "$@"; do
@@ -180,6 +231,11 @@ else
 fi
 
 if [[ "$PRINT_SHELL" -eq 1 ]]; then
+  if is_wsl; then
+    if WINDOWS_TEMP_PATH="$(detect_windows_local_temp 2>/dev/null)"; then
+      printf 'export PATH=%q:\"$PATH\"\n' "$WINDOWS_TEMP_PATH"
+    fi
+  fi
   if [[ -n "$BROWSER_PATH" ]]; then
     printf 'export CHROME_PATH=%q\n' "$BROWSER_PATH"
   fi
@@ -220,6 +276,15 @@ if [[ -z "$BROWSER_PATH" ]]; then
 else
   echo "[OK] Suggested browser path: $BROWSER_PATH"
   echo "     Export with: export CHROME_PATH=$BROWSER_PATH"
+fi
+
+if is_wsl; then
+  if WINDOWS_TEMP_PATH="$(detect_windows_local_temp 2>/dev/null)"; then
+    echo "[OK] Suggested WSL launcher temp path: $WINDOWS_TEMP_PATH"
+    echo "     Export with: export PATH=$WINDOWS_TEMP_PATH:\$PATH"
+  else
+    echo "[WARN] Could not detect a Windows Local Temp path for chrome-launcher."
+  fi
 fi
 
 if is_wsl && [[ ! -x /usr/bin/google-chrome-stable ]]; then

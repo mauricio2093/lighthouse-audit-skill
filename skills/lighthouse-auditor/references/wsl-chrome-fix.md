@@ -56,7 +56,25 @@ export CHROME_PATH=/usr/bin/google-chrome-stable
 
 Do not default to a Windows Chrome binary. Use Chromium in WSL only if the user declines Chrome Stable or installation is impossible.
 
-### 4. Run Lighthouse with WSL-friendly flags
+### 4. Export the launcher environment fix
+
+This specific `ENOENT ... /mnt/undefined/Users/undefined/AppData/Local/lighthouse...` error is not fixed by `CHROME_PATH` alone.
+It happens before the report is generated, when `chrome-launcher` tries to derive a Windows temp directory from `PATH`.
+
+Preferred fix:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+```
+
+Manual fallback:
+
+```bash
+export PATH="/mnt/c/Users/<windows-user>/AppData/Local/Temp:$PATH"
+export CHROME_PATH=/usr/bin/google-chrome-stable
+```
+
+### 5. Run Lighthouse with WSL-friendly flags
 
 ```bash
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
@@ -65,9 +83,19 @@ lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable
 The known-good combination is:
 
 ```bash
+export PATH="/mnt/c/Users/<windows-user>/AppData/Local/Temp:$PATH"
 export CHROME_PATH=/usr/bin/google-chrome-stable
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
 ```
+
+When using the skill from its own folder, the preferred literal fallback is:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
+```
+
+Do not skip this exact test and then claim the environment is blocked based only on similar variants such as different headless flags, extra hostname or port settings, or a different Chrome binary path.
 
 If WSL plus Chrome launcher behavior starts leaving literal directories such as `C:\Users\...\AppData\Local\lighthouse.*` inside the project root, force a Linux temp profile with:
 
@@ -75,7 +103,7 @@ If WSL plus Chrome launcher behavior starts leaving literal directories such as 
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu --user-data-dir=/tmp/lighthouse-user-data"
 ```
 
-### 5. Verify success
+### 6. Verify success
 
 The fix is confirmed only when Lighthouse finishes and produces normal output:
 

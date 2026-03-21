@@ -38,6 +38,75 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_reserved_windows_profile() {
+  case "$1" in
+    "All Users"|"Default"|"Default User"|"Public"|"TEMP")
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+detect_windows_local_temp() {
+  local local_appdata=""
+  local candidate=""
+  local profile_name=""
+
+  if ! is_wsl; then
+    return 1
+  fi
+
+  if has_cmd cmd.exe; then
+    local_appdata="$(cmd.exe /c "echo %LOCALAPPDATA%" 2>/dev/null | tr -d '\r' | tail -n 1)"
+    if [[ -n "$local_appdata" && "$local_appdata" != "%LOCALAPPDATA%" ]]; then
+      if has_cmd wslpath; then
+        local_appdata="$(wslpath -u "$local_appdata" 2>/dev/null || true)"
+      fi
+      profile_name="$(basename "$(dirname "$(dirname "$(dirname "$local_appdata")")")")"
+      if is_reserved_windows_profile "$profile_name"; then
+        local_appdata=""
+      fi
+      if [[ -n "$local_appdata" && -d "$local_appdata/Temp" ]]; then
+        printf '%s\n' "$local_appdata/Temp"
+        return 0
+      fi
+    fi
+  fi
+
+  for candidate in /mnt/c/Users/*/AppData/Local/Temp; do
+    profile_name="$(basename "$(dirname "$(dirname "$(dirname "$candidate")")")")"
+    if is_reserved_windows_profile "$profile_name"; then
+      continue
+    fi
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_wsl_launcher_path() {
+  local windows_temp=""
+
+  if ! is_wsl; then
+    return 0
+  fi
+
+  if windows_temp="$(detect_windows_local_temp 2>/dev/null)"; then
+    case ":$PATH:" in
+      *":$windows_temp:"*)
+        ;;
+      *)
+        export PATH="$windows_temp:$PATH"
+        ;;
+    esac
+  fi
+}
+
 cleanup_run_artifacts() {
   local target
 
@@ -193,6 +262,8 @@ if [[ -z "$CHROME_FLAGS" ]]; then
     CHROME_FLAGS="--headless --no-sandbox --disable-dev-shm-usage"
   fi
 fi
+
+ensure_wsl_launcher_path
 
 mkdir -p "$OUTPUT_DIR"
 

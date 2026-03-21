@@ -37,14 +37,22 @@ Start with:
 bash scripts/ensure_lighthouse_env.sh --check
 ```
 
+If you need shell exports for a raw Lighthouse command, use:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+```
+
 Then act on the result:
 
 - If `lighthouse` is missing and `npm` is available, install it with `npm install -g lighthouse`, or use `npx lighthouse` for a one-off run.
 - If Node.js or npm is missing, install Node.js 18+ LTS before continuing.
 - If the environment is WSL, prefer a Linux-native browser. Do not point Lighthouse to a Windows Chrome binary under `/mnt/c/...`.
 - In WSL, prefer `/usr/bin/google-chrome-stable` over Chromium. If Chrome Stable is missing, install it before trying to debug launcher failures.
+- In WSL, `CHROME_PATH` alone is not always enough. `chrome-launcher` may also require a valid Windows Local Temp path in `PATH`. Use `ensure_lighthouse_env.sh --print-shell` or the bundled wrapper so that fix is applied automatically.
 - If the user wants the agent to install missing dependencies directly, rerun `scripts/ensure_lighthouse_env.sh` with `--install-lighthouse`, `--install-browser`, or `--install-all`.
 - If browser launch fails with `Cannot find Chrome`, `ECONNREFUSED 127.0.0.1`, or similar launcher errors, read [references/wsl-chrome-fix.md](./references/wsl-chrome-fix.md) and apply it exactly.
+- Do not declare Lighthouse blocked in WSL until you have tried the explicit fallback sequence from `references/wsl-chrome-fix.md`, including the exact raw Lighthouse command with `--chrome-flags="--headless --no-sandbox --disable-gpu"` after exporting the environment fix.
 
 When installation needs network access, `sudo`, or package-manager changes, ask for approval and state exactly what will be installed.
 
@@ -95,6 +103,16 @@ bash scripts/run_lighthouse_audit.sh https://example.com --only-categories perfo
 ```
 
 Use raw `lighthouse` commands only when a wrapper script would get in the way of a very custom case.
+In WSL, prefer the wrapper even more strongly because it injects the launcher-specific environment fix automatically.
+
+If you need to prove whether raw Lighthouse works in WSL, use this exact sequence before concluding the environment is blocked:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
+```
+
+If that exact sequence still fails, report the exact stderr and classify it as an environment/runtime issue.
 
 Always save both HTML and JSON output so the report can be opened visually and analyzed programmatically. When running both device profiles, keep the output sets separate and compare them explicitly.
 
