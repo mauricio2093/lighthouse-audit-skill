@@ -35,6 +35,7 @@ Start with:
 
 ```bash
 bash scripts/ensure_lighthouse_env.sh --check
+bash scripts/clean_lighthouse_temp.sh
 ```
 
 If you need shell exports for a raw Lighthouse command, use:
@@ -45,7 +46,7 @@ eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
 
 Then act on the result:
 
-- If `lighthouse` is missing and `npm` is available, install it with `npm install -g lighthouse`, or use `npx lighthouse` for a one-off run.
+- If the global `lighthouse` binary is missing and `npm` is available, install it with `npm install -g lighthouse`, or use `npx --yes lighthouse` for a one-off run.
 - If Node.js or npm is missing, install Node.js 18+ LTS before continuing.
 - If the environment is WSL, prefer a Linux-native browser. Do not point Lighthouse to a Windows Chrome binary under `/mnt/c/...`.
 - In WSL, prefer `/usr/bin/google-chrome-stable` over Chromium. If Chrome Stable is missing, install it before trying to debug launcher failures.
@@ -82,6 +83,8 @@ bash scripts/run_lighthouse_audit.sh https://example.com
 By default, the wrapper creates `./lighthouse-audit-results` in the current working directory, so reports stay inside the project where the audit was executed.
 By default, it generates separate report pairs for `mobile` and `desktop`.
 In WSL, it also cleans temporary Chrome/Lighthouse profile directories automatically so only the final reports remain in the project.
+The wrapper prefers the global `lighthouse` binary, but if it is missing and `npx` is available it can fall back to `npx --yes lighthouse`.
+If a previous failed run already left stray folders in the project root, run `bash scripts/clean_lighthouse_temp.sh` before or after the audit.
 
 Common variations:
 
@@ -112,7 +115,20 @@ eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
 ```
 
-If that exact sequence still fails, report the exact stderr and classify it as an environment/runtime issue.
+If the global binary is not installed but `npx` is available, run the same fallback with:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+npx --yes lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
+```
+
+After any raw fallback attempt in WSL, run:
+
+```bash
+bash scripts/clean_lighthouse_temp.sh
+```
+
+If those exact sequences still fail, report the exact stderr and classify it as an environment/runtime issue.
 
 Always save both HTML and JSON output so the report can be opened visually and analyzed programmatically. When running both device profiles, keep the output sets separate and compare them explicitly.
 
@@ -162,6 +178,7 @@ A complete answer should normally include:
 ## Resources
 
 - `scripts/ensure_lighthouse_env.sh`: Check and optionally install Lighthouse plus a usable browser, with WSL-specific Chrome handling.
+- `scripts/clean_lighthouse_temp.sh`: Remove stray Chrome/Lighthouse temp directories that may be materialized in the project root by WSL launcher failures.
 - `scripts/run_lighthouse_audit.sh`: Run a single or repeated audit with sensible defaults and stable output naming.
 - `scripts/summarize_lighthouse_report.py`: Extract scores, metrics, opportunities, and failing audits from a Lighthouse JSON report.
 - [references/wsl-chrome-fix.md](./references/wsl-chrome-fix.md): Exact recovery steps for WSL Chrome launcher failures.

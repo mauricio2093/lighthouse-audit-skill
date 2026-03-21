@@ -11,6 +11,7 @@ CHROME_FLAGS=""
 EXTRA_HEADERS=""
 URL=""
 CLEANUP_DIRS=()
+LIGHTHOUSE_CMD=()
 
 usage() {
   cat <<'EOF'
@@ -36,6 +37,20 @@ is_wsl() {
 
 has_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+detect_lighthouse_command() {
+  if has_cmd lighthouse; then
+    LIGHTHOUSE_CMD=(lighthouse)
+    return 0
+  fi
+
+  if has_cmd npx; then
+    LIGHTHOUSE_CMD=(npx --yes lighthouse)
+    return 0
+  fi
+
+  return 1
 }
 
 is_reserved_windows_profile() {
@@ -117,7 +132,12 @@ cleanup_run_artifacts() {
   find . -maxdepth 1 -mindepth 1 -type d \
     \( \
       -name 'C:*lighthouse.*' -o \
+      -name 'C*Users*AppData*Local*lighthouse.*' -o \
+      -name '*AppData*Local*lighthouse.*' -o \
       -name '*\\AppData\\Local\\lighthouse.*' -o \
+      -name '@undefined' -o \
+      -name '@undefined:*' -o \
+      -name '*@undefined*' -o \
       -name '*undefined:*' -o \
       -name 'undefined:' \
     \) \
@@ -251,8 +271,9 @@ if [[ -z "$URL" ]]; then
   exit 1
 fi
 
-if ! has_cmd lighthouse; then
-  echo "[ERROR] Lighthouse is not installed. Run bash scripts/ensure_lighthouse_env.sh --check first."
+if ! detect_lighthouse_command; then
+  echo "[ERROR] Lighthouse is not available. Run bash scripts/ensure_lighthouse_env.sh --check first."
+  echo "        Install it globally with npm install -g lighthouse or use npm/npx so the wrapper can run npx --yes lighthouse."
   exit 1
 fi
 
@@ -303,7 +324,7 @@ while IFS= read -r PROFILE; do
     fi
 
     CMD=(
-      lighthouse "$URL"
+      "${LIGHTHOUSE_CMD[@]}" "$URL"
       --output html,json
       --output-path "$OUTPUT_BASE"
       --only-categories "$ONLY_CATEGORIES"

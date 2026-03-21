@@ -65,6 +65,7 @@ Preferred fix:
 
 ```bash
 eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+bash scripts/clean_lighthouse_temp.sh
 ```
 
 Manual fallback:
@@ -78,6 +79,12 @@ export CHROME_PATH=/usr/bin/google-chrome-stable
 
 ```bash
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
+```
+
+If the global `lighthouse` binary is not installed but `npx` is available, use:
+
+```bash
+npx --yes lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
 ```
 
 The known-good combination is:
@@ -95,12 +102,25 @@ eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
 ```
 
+If the environment only has `npx`, use this exact variant instead:
+
+```bash
+eval "$(bash scripts/ensure_lighthouse_env.sh --print-shell)"
+npx --yes lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu"
+```
+
 Do not skip this exact test and then claim the environment is blocked based only on similar variants such as different headless flags, extra hostname or port settings, or a different Chrome binary path.
 
-If WSL plus Chrome launcher behavior starts leaving literal directories such as `C:\Users\...\AppData\Local\lighthouse.*` inside the project root, force a Linux temp profile with:
+If WSL plus Chrome launcher behavior starts leaving literal directories such as `C:\Users\...\AppData\Local\lighthouse.*`, `undefined:`, or `@undefined` inside the project root, force a Linux temp profile with:
 
 ```bash
 lighthouse https://example.com --chrome-flags="--headless --no-sandbox --disable-gpu --user-data-dir=/tmp/lighthouse-user-data"
+```
+
+Then clean the project root explicitly:
+
+```bash
+bash scripts/clean_lighthouse_temp.sh
 ```
 
 ### 6. Verify success
