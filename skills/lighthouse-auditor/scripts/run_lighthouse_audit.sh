@@ -114,7 +114,14 @@ cleanup_run_artifacts() {
     [[ -n "$target" ]] && rm -rf -- "$target"
   done
 
-  find . -maxdepth 1 -mindepth 1 -type d -name 'C:*lighthouse.*' -exec rm -rf -- {} +
+  find . -maxdepth 1 -mindepth 1 -type d \
+    \( \
+      -name 'C:*lighthouse.*' -o \
+      -name '*\\AppData\\Local\\lighthouse.*' -o \
+      -name '*undefined:*' -o \
+      -name 'undefined:' \
+    \) \
+    -exec rm -rf -- {} +
 }
 
 trap cleanup_run_artifacts EXIT
